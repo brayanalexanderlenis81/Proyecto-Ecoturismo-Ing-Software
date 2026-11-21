@@ -1,0 +1,534 @@
+GET http://127.0.0.1:3000/api/actividades
+###
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+
+{
+  "id_turista": 12,
+  "id_publicacion": 5
+}
+###
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+
+{
+  "id_turista": 12,
+  "id_publicacion": 5,
+  "fecha_entrada": "2026-12-20",
+  "fecha_salida": "2026-12-22",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Reserva que choca con la de Ana
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+
+{
+  "id_turista": 12,
+  "id_publicacion": 5,
+  "fecha_entrada": "2027-02-01",
+  "fecha_salida": "2027-02-03",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Pagar una reserva
+POST http://127.0.0.1:3000/api/pagos
+Content-Type: application/json
+
+{
+  "id_reserva": 22,
+  "clave_idempotencia": "pago-prueba-2",
+  "medio": "nequi",
+  "resultado": "aprobado"
+}
+
+### Probar CORS
+GET http://127.0.0.1:3000/api/salud
+Origin: http://localhost:5173
+
+### Registro de un turista
+POST http://127.0.0.1:3000/api/registro
+Content-Type: application/json
+
+{
+  "nombre": "Camila Torres",
+  "correo": "camila3@ecoturismo.test",
+  "contrasena": "me gusta tu puta madre",
+  "telefono": "123",
+  "rol": "turista",
+  "acepta_datos": true
+}
+
+### Iniciar sesión: datos correctos
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "camila@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Iniciar sesión: contraseña equivocada
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "camila@ecoturismo.test",
+  "contrasena": "otraCualquiera"
+}
+
+### Iniciar sesión: correo que no existe
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "nadie@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Iniciar sesión como Camila
+# @name loginCamila
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "camila@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Reservar sin token
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+
+{
+  "id_publicacion": 5,
+  "fecha_entrada": "2027-02-15",
+  "fecha_salida": "2027-02-17",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Reservar con el token de Camila
+# @name reservaCamila
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+{
+  "id_publicacion": 5,
+  "fecha_entrada": "2027-02-15",
+  "fecha_salida": "2027-02-17",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Iniciar sesión como Andrés
+# @name loginAndres
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "andres@ecoturismo.test",
+  "contrasena": "Prueba123*"
+}
+
+### Andrés intenta pagar la reserva de Camila
+POST http://127.0.0.1:3000/api/pagos
+Content-Type: application/json
+Authorization: Bearer {{loginAndres.response.body.$.token}}
+
+{
+  "id_reserva": {{reservaCamila.response.body.$.id_reserva}},
+  "clave_idempotencia": "pago-reserva-{{reservaCamila.response.body.$.id_reserva}}",
+  "medio": "nequi",
+  "resultado": "aprobado"
+}
+
+### Camila paga su reserva
+POST http://127.0.0.1:3000/api/pagos
+Content-Type: application/json
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+{
+  "id_reserva": {{reservaCamila.response.body.$.id_reserva}},
+  "clave_idempotencia": "pago-reserva-{{reservaCamila.response.body.$.id_reserva}}",
+  "medio": "nequi",
+  "resultado": "aprobado"
+}
+
+### Detalle del Glamping
+GET http://127.0.0.1:3000/api/publicaciones/5
+
+### Detalle del Rafting
+GET http://127.0.0.1:3000/api/publicaciones/8
+
+### Detalle de una que no está aprobada
+GET http://127.0.0.1:3000/api/publicaciones/9
+
+### Detalle con un id que no es número
+GET http://127.0.0.1:3000/api/publicaciones/abc
+
+### Salidas del Rafting
+# @name salidasRafting
+GET http://127.0.0.1:3000/api/actividades/8/salidas
+
+### Reservar 2 cupos en la primera salida del Rafting
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+{
+  "id_publicacion": 8,
+  "id_salida": {{salidasRafting.response.body.$[0].id_salida}},
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Pedir 3 cupos en la salida que solo tiene 2
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+{
+  "id_publicacion": 8,
+  "id_salida": {{salidasRafting.response.body.$[1].id_salida}},
+  "personas": 3,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Lista de municipios
+GET http://127.0.0.1:3000/api/municipios
+
+### Iniciar sesión como Laura (anfitriona)
+# @name loginLaura
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "laura@ecoturismo.test",
+  "contrasena": "Prueba123*"
+}
+
+### Laura publica un alojamiento
+# @name publicacionLaura
+POST http://127.0.0.1:3000/api/publicaciones
+Content-Type: application/json
+Authorization: Bearer {{loginLaura.response.body.$.token}}
+
+{
+  "tipo": "alojamiento",
+  "id_municipio": 2,
+  "categoria": "Cabaña",
+  "titulo": "Cabaña entre viñedos",
+  "descripcion": "Cabaña de madera para cuatro personas, rodeada de viñedos y con vista al desierto de La Candelaria.",
+  "precio_base": 220000,
+  "capacidad": 4,
+  "direccion_exacta": "Vereda Sopotá, kilómetro 4",
+  "latitud": 5.6412,
+  "longitud": -73.5401,
+  "normas": "No se permiten mascotas. Silencio después de las 10 p. m.",
+  "hora_entrada": "15:00",
+  "hora_salida": "11:00"
+}
+
+### Camila (turista) intenta publicar
+POST http://127.0.0.1:3000/api/publicaciones
+Content-Type: application/json
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+{
+  "tipo": "alojamiento"
+}
+
+### Detalle de la publicación nueva
+GET http://127.0.0.1:3000/api/publicaciones/{{publicacionLaura.response.body.$.id_publicacion}}
+
+### Publicar sin los datos obligatorios
+POST http://127.0.0.1:3000/api/publicaciones
+Content-Type: application/json
+Authorization: Bearer {{loginLaura.response.body.$.token}}
+
+{
+  "tipo": "alojamiento",
+  "id_municipio": 2
+}
+
+### Iniciar sesión como administrador
+# @name loginAdmin
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "admin@ecoturismo.test",
+  "contrasena": "Prueba123*"
+}
+
+### Publicaciones en revisión
+GET http://127.0.0.1:3000/api/admin/publicaciones
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### Laura intenta ver las publicaciones en revisión
+GET http://127.0.0.1:3000/api/admin/publicaciones
+Authorization: Bearer {{loginLaura.response.body.$.token}}
+
+### Rechazar sin motivo
+PATCH http://127.0.0.1:3000/api/admin/publicaciones/{{publicacionLaura.response.body.$.id_publicacion}}
+Content-Type: application/json
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+{
+  "decision": "rechazada"
+}
+
+### Aprobar la cabaña de Laura
+PATCH http://127.0.0.1:3000/api/admin/publicaciones/{{publicacionLaura.response.body.$.id_publicacion}}
+Content-Type: application/json
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+{
+  "decision": "aprobada"
+}
+
+### Detalle de la cabaña ya aprobada
+GET http://127.0.0.1:3000/api/publicaciones/{{publicacionLaura.response.body.$.id_publicacion}}
+
+### Registro de Mario (anfitrión nuevo)
+# @name registroMario
+POST http://127.0.0.1:3000/api/registro
+Content-Type: application/json
+
+{
+  "nombre": "Mario Rojas",
+  "correo": "mario@ecoturismo.test",
+  "contrasena": "Segura2026",
+  "telefono": "3112223344",
+  "rol": "anfitrion",
+  "numero_rnt": "778899",
+  "acepta_datos": true
+}
+
+### Iniciar sesión como Mario
+# @name loginMario
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "mario@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Mario intenta publicar sin el RNT aprobado
+POST http://127.0.0.1:3000/api/publicaciones
+Content-Type: application/json
+Authorization: Bearer {{loginMario.response.body.$.token}}
+
+{
+  "tipo": "actividad",
+  "id_municipio": 7,
+  "categoria": "Ciclismo",
+  "titulo": "Recorrido en bicicleta por Villa de Leyva",
+  "descripcion": "Recorrido guiado de tres horas por los alrededores de Villa de Leyva.",
+  "precio_base": 70000,
+  "capacidad": 6,
+  "direccion_exacta": "Plaza principal de Villa de Leyva",
+  "latitud": 5.6333,
+  "longitud": -73.5250,
+  "normas": "Usar casco todo el tiempo.",
+  "dificultad": "baja",
+  "requisitos_participante": "Saber montar bicicleta.",
+  "equipo_incluido": "Bicicleta y casco.",
+  "guia_incluido": true,
+  "tiene_seguro": true,
+  "detalle_seguridad": "Guía con botiquín y bicicleta de repuesto."
+}
+
+### Anfitriones pendientes
+GET http://127.0.0.1:3000/api/admin/anfitriones
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+### Aprobar el RNT de Mario
+PATCH http://127.0.0.1:3000/api/admin/anfitriones/{{registroMario.response.body.$.id_usuario}}
+Content-Type: application/json
+Authorization: Bearer {{loginAdmin.response.body.$.token}}
+
+{
+  "decision": "aprobado"
+}
+
+### Mario publica con el RNT aprobado
+POST http://127.0.0.1:3000/api/publicaciones
+Content-Type: application/json
+Authorization: Bearer {{loginMario.response.body.$.token}}
+
+{
+  "tipo": "actividad",
+  "id_municipio": 7,
+  "categoria": "Ciclismo",
+  "titulo": "Recorrido en bicicleta por Villa de Leyva",
+  "descripcion": "Recorrido guiado de tres horas por los alrededores de Villa de Leyva.",
+  "precio_base": 70000,
+  "capacidad": 6,
+  "direccion_exacta": "Plaza principal de Villa de Leyva",
+  "latitud": 5.6333,
+  "longitud": -73.5250,
+  "normas": "Usar casco todo el tiempo.",
+  "dificultad": "baja",
+  "requisitos_participante": "Saber montar bicicleta.",
+  "equipo_incluido": "Bicicleta y casco.",
+  "guia_incluido": true,
+  "tiene_seguro": true,
+  "detalle_seguridad": "Guía con botiquín y bicicleta de repuesto."
+}
+
+### Mis reservas (Camila)
+GET http://127.0.0.1:3000/api/mis-reservas
+Authorization: Bearer {{loginCamila.response.body.$.token}}
+
+### Mis reservas sin token
+GET http://127.0.0.1:3000/api/mis-reservas
+
+### Login Camila
+# @name camila
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "camila@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Login Andrés
+# @name andres
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "andres@ecoturismo.test",
+  "contrasena": "Prueba123*"
+}
+
+### Login Laura
+# @name laura
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "laura@ecoturismo.test",
+  "contrasena": "Prueba123*"
+}
+
+### Login Mario
+# @name mario
+POST http://127.0.0.1:3000/api/login
+Content-Type: application/json
+
+{
+  "correo": "mario@ecoturismo.test",
+  "contrasena": "Segura2026"
+}
+
+### Camila reserva el Glamping para cancelarlo
+# @name reservaParaCancelar
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+Authorization: Bearer {{camila.response.body.$.token}}
+
+{
+  "id_publicacion": 5,
+  "fecha_entrada": "2027-03-10",
+  "fecha_salida": "2027-03-12",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Camila cancela su reserva
+POST http://127.0.0.1:3000/api/reservas/{{reservaParaCancelar.response.body.$.id_reserva}}/cancelar
+Authorization: Bearer {{camila.response.body.$.token}}
+
+### Andrés reserva las mismas fechas que quedaron libres
+POST http://127.0.0.1:3000/api/reservas
+Content-Type: application/json
+Authorization: Bearer {{andres.response.body.$.token}}
+
+{
+  "id_publicacion": 5,
+  "fecha_entrada": "2027-03-10",
+  "fecha_salida": "2027-03-12",
+  "personas": 2,
+  "emergencia_nombre": "Pedro Martínez",
+  "emergencia_telefono": "3109876543",
+  "version_normas": "v1"
+}
+
+### Mis publicaciones (Mario)
+GET http://127.0.0.1:3000/api/anfitrion/publicaciones
+Authorization: Bearer {{mario.response.body.$.token}}
+
+### Mis publicaciones (Camila, turista)
+GET http://127.0.0.1:3000/api/anfitrion/publicaciones
+Authorization: Bearer {{camila.response.body.$.token}}
+
+### Mario crea una salida para su bicicleta
+POST http://127.0.0.1:3000/api/anfitrion/publicaciones/13/salidas
+Content-Type: application/json
+Authorization: Bearer {{mario.response.body.$.token}}
+
+{
+  "inicio": "2026-12-05T09:00:00-05:00",
+  "fin": "2026-12-05T12:00:00-05:00",
+  "capacidad_total": 6
+}
+
+### Laura intenta crear una salida en la actividad de Mario
+POST http://127.0.0.1:3000/api/anfitrion/publicaciones/13/salidas
+Content-Type: application/json
+Authorization: Bearer {{laura.response.body.$.token}}
+
+{
+  "inicio": "2026-12-06T09:00:00-05:00",
+  "fin": "2026-12-06T12:00:00-05:00",
+  "capacidad_total": 6
+}
+
+### Camila intenta reseñar un viaje que todavía no hace
+POST http://127.0.0.1:3000/api/reservas/23/resena
+Content-Type: application/json
+Authorization: Bearer {{camila.response.body.$.token}}
+
+{
+  "calificacion": 5,
+  "comentario": "Todo muy bien."
+}
+
+### Reseñas del Rafting
+GET http://127.0.0.1:3000/api/publicaciones/8/resenas
+
+### Buscar alojamientos con "leyva"
+GET http://127.0.0.1:3000/api/alojamientos?q=leyva
+
+### Ruta que no existe
+GET http://127.0.0.1:3000/api/no-existe
+
+### Mi perfil (Mario)
+GET http://127.0.0.1:3000/api/perfil
+Authorization: Bearer {{mario.response.body.$.token}}
+
+### Mi perfil (Camila)
+GET http://127.0.0.1:3000/api/perfil
+Authorization: Bearer {{camila.response.body.$.token}}

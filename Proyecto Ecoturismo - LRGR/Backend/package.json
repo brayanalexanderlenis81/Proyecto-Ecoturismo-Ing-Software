@@ -1,0 +1,32 @@
+{
+  "name": "ecoturismo",
+  "version": "1.0.0",
+  "description": "Plataforma web tipo Airbnb para publicar, buscar y reservar alojamientos y actividades de ecoturismo",
+  "keywords": [
+    "reservas"
+  ],
+  "homepage": "https://github.com/brayanalexanderlenis81/Proyecto-Ecoturismo-Ing-Software#readme",
+  "bugs": {
+    "url": "https://github.com/brayanalexanderlenis81/Proyecto-Ecoturismo-Ing-Software/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brayanalexanderlenis81/Proyecto-Ecoturismo-Ing-Software.git"
+  },
+  "license": "UNLICENSED",
+  "author": "Brayan Alexander Lenis",
+  "type": "commonjs",
+  "main": "MainEcoturismo.js",
+  "scripts": {
+    "start": "node --env-file=.env MainEcoturismo.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.1"
+  }
+}
