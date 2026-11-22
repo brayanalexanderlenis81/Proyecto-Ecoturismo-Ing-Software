@@ -40,6 +40,8 @@ const esAnfitrion = computed(() => perfil.value && perfil.value.roles.includes('
 
 const esTurista = computed(() => perfil.value && perfil.value.roles.includes('turista'))
 
+const esAdministrador = computed(() => perfil.value && perfil.value.roles.includes('administrador'))
+
 async function cargar() {
   cargando.value = true
   error.value = ''
@@ -128,6 +130,18 @@ onMounted(cargar)
           <RouterLink v-if="esTurista" :to="{ name: 'mis-reservas' }" class="enlace">
             <IconoBase nombre="calendario" />
             Mis reservas
+          </RouterLink>
+          <RouterLink v-if="esAnfitrion" :to="{ name: 'mis-publicaciones' }" class="enlace">
+            <IconoBase nombre="lista" />
+            Mis publicaciones
+          </RouterLink>
+          <RouterLink v-if="esAnfitrion" :to="{ name: 'publicar' }" class="enlace">
+            <IconoBase nombre="mas" />
+            Publicar
+          </RouterLink>
+          <RouterLink v-if="esAdministrador" :to="{ name: 'panel-admin' }" class="enlace">
+            <IconoBase nombre="escudo" />
+            Panel de administración
           </RouterLink>
           <RouterLink :to="{ name: 'resultados' }" class="enlace">
             <IconoBase nombre="brujula" />

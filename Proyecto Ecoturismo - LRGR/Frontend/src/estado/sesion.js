@@ -52,3 +52,17 @@ export function cerrarSesion() {
 export function primerNombre() {
   return sesion.usuario ? sesion.usuario.nombre.split(' ')[0] : ''
 }
+
+export function tieneRol(rol) {
+  return haySesion() && Boolean(sesion.usuario) && (sesion.usuario.roles || []).includes(rol)
+}
+
+export function inicioSegunRol() {
+  if (tieneRol('administrador')) {
+    return { name: 'panel-admin' }
+  }
+  if (tieneRol('anfitrion')) {
+    return { name: 'mis-publicaciones' }
+  }
+  return { name: 'resultados' }
+}

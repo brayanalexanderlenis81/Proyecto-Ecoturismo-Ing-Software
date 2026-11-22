@@ -96,7 +96,9 @@ img {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -189,8 +191,10 @@ a {
 }
 
 .campo-borde input,
+.campo-borde select,
 .campo-borde textarea {
   width: 100%;
+  min-width: 0;
   min-height: 56px;
   padding: 0 var(--espacio-4);
   border: 1px solid var(--color-borde-fuerte);
@@ -205,10 +209,21 @@ a {
 }
 
 .campo-borde input:focus,
+.campo-borde select:focus,
 .campo-borde textarea:focus {
   outline: none;
   border-color: var(--color-primario);
   box-shadow: inset 0 0 0 1px var(--color-primario);
+}
+
+.campo-borde input[type='time'] {
+  padding: 0 var(--espacio-2) 0 var(--espacio-3);
+}
+
+.fila-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espacio-3);
 }
 
 .casilla {

@@ -74,3 +74,7 @@ export function sumarDias(fecha, dias) {
   const dia = String(resultado.getDate()).padStart(2, '0')
   return resultado.getFullYear() + '-' + mes + '-' + dia
 }
+
+export function formatearDia(valor) {
+  return new Date(valor).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+}

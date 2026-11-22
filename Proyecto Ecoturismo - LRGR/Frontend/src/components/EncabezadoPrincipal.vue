@@ -1,7 +1,7 @@
 <script setup>
 import Buscador from './Buscador.vue'
 import IconoBase from './IconoBase.vue'
-import { haySesion, primerNombre } from '../estado/sesion.js'
+import { haySesion, tieneRol, primerNombre } from '../estado/sesion.js'
 
 defineProps({
   busqueda: { type: Object, default: null }
@@ -24,7 +24,15 @@ const emit = defineEmits(['buscar', 'abrir-filtros'])
 
     <nav class="cuenta" aria-label="Cuenta">
       <template v-if="haySesion()">
-        <RouterLink :to="{ name: 'mis-reservas' }" class="boton boton-contorno">Mis reservas</RouterLink>
+        <RouterLink v-if="tieneRol('turista')" :to="{ name: 'mis-reservas' }" class="boton boton-contorno">
+          Mis reservas
+        </RouterLink>
+        <RouterLink v-if="tieneRol('anfitrion')" :to="{ name: 'mis-publicaciones' }" class="boton boton-contorno">
+          Mis publicaciones
+        </RouterLink>
+        <RouterLink v-if="tieneRol('administrador')" :to="{ name: 'panel-admin' }" class="boton boton-contorno">
+          Panel
+        </RouterLink>
         <RouterLink :to="{ name: 'perfil' }" class="boton boton-primario">
           <IconoBase nombre="perfil" :tamano="20" />
           {{ primerNombre() }}

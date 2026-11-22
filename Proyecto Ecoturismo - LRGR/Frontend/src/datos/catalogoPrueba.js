@@ -45,14 +45,30 @@ export async function obtenerPublicacion(id) {
   return conVersion(publicacion)
 }
 
+export const municipios = [
+  { id_municipio: '1', nombre: 'Guatavita', departamento: 'Cundinamarca' },
+  { id_municipio: '2', nombre: 'Villa de Leyva', departamento: 'Boyacá' },
+  { id_municipio: '3', nombre: 'Salento', departamento: 'Quindío' },
+  { id_municipio: '4', nombre: 'San Gil', departamento: 'Santander' },
+  { id_municipio: '5', nombre: 'Santa Marta', departamento: 'Magdalena' },
+  { id_municipio: '6', nombre: 'Filandia', departamento: 'Quindío' }
+]
+
 export async function obtenerMunicipios() {
   await esperar()
-  const vistos = new Map()
-  publicaciones.forEach((item) => vistos.set(item.ciudad, item.departamento))
-  return [...vistos].map(([nombre, departamento], indice) => ({ id_municipio: String(indice + 1), nombre, departamento }))
+  return municipios
 }
 
 export async function obtenerSalidas(id) {
   await esperar()
   return salidas[Number(id)] || []
+}
+
+export function agregarSalida(idActividad, salida) {
+  const id = Number(idActividad)
+  if (!salidas[id]) {
+    salidas[id] = []
+  }
+  salidas[id].push(salida)
+  salidas[id].sort((a, b) => new Date(a.inicio) - new Date(b.inicio))
 }

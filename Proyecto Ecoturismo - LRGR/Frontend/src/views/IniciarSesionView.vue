@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import { iniciarSesion } from '../datos/servicios.js'
-import { guardarSesion } from '../estado/sesion.js'
+import { guardarSesion, inicioSegunRol } from '../estado/sesion.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +15,7 @@ const error = ref('')
 
 function destinoDespues() {
   const redirigir = route.query.redirigir
-  return typeof redirigir === 'string' && redirigir.startsWith('/') ? redirigir : { name: 'resultados' }
+  return typeof redirigir === 'string' && redirigir.startsWith('/') ? redirigir : inicioSegunRol()
 }
 
 async function enviar() {
@@ -70,7 +70,9 @@ async function enviar() {
 
       <div class="ayuda-prueba">
         <p><strong>Usuarios de prueba</strong></p>
-        <p>ana@ecoturismo.test · laura@ecoturismo.test</p>
+        <p>Turista: ana@ecoturismo.test</p>
+        <p>Anfitriona: laura@ecoturismo.test</p>
+        <p>Administrador: admin@ecoturismo.test</p>
         <p>Contraseña: Prueba123*</p>
       </div>
     </main>

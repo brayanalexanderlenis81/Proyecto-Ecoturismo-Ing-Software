@@ -2,6 +2,7 @@ import { pedir, usaApi } from './api.js'
 import { adaptarPublicacion, adaptarDetalle, adaptarSalida, ubicarEnMapa, valoresPorDefecto } from './adaptadores.js'
 import * as cuentaPrueba from './cuentaPrueba.js'
 import * as catalogoPrueba from './catalogoPrueba.js'
+import * as gestionPrueba from './gestionPrueba.js'
 import { contactoEmergenciaPerfil } from './publicaciones.js'
 import { normalizarTexto } from '../utilidades/formato.js'
 
@@ -140,4 +141,53 @@ export async function obtenerSalidas(id) {
 
 export function contactoEmergenciaInicial() {
   return usaApi ? { ...valoresPorDefecto.contactoEmergencia } : { ...contactoEmergenciaPerfil }
+}
+
+export function obtenerMisPublicaciones(token) {
+  if (!usaApi) {
+    return gestionPrueba.obtenerMisPublicaciones(token)
+  }
+  return pedir('/api/anfitrion/publicaciones', { token })
+}
+
+export function crearPublicacion(token, datos) {
+  if (!usaApi) {
+    return gestionPrueba.crearPublicacion(token, datos)
+  }
+  return pedir('/api/publicaciones', { metodo: 'POST', cuerpo: datos, token })
+}
+
+export async function crearSalida(token, idPublicacion, datos) {
+  const salida = usaApi
+    ? await pedir('/api/anfitrion/publicaciones/' + idPublicacion + '/salidas', { metodo: 'POST', cuerpo: datos, token })
+    : await gestionPrueba.crearSalida(token, idPublicacion, datos)
+  return adaptarSalida({ ...salida, cupos_disponibles: salida.capacidad_total })
+}
+
+export function obtenerPublicacionesEnRevision(token) {
+  if (!usaApi) {
+    return gestionPrueba.obtenerPublicacionesEnRevision(token)
+  }
+  return pedir('/api/admin/publicaciones', { token })
+}
+
+export function decidirPublicacion(token, idPublicacion, decision) {
+  if (!usaApi) {
+    return gestionPrueba.decidirPublicacion(token, idPublicacion, decision)
+  }
+  return pedir('/api/admin/publicaciones/' + idPublicacion, { metodo: 'PATCH', cuerpo: decision, token })
+}
+
+export function obtenerAnfitrionesPendientes(token) {
+  if (!usaApi) {
+    return gestionPrueba.obtenerAnfitrionesPendientes(token)
+  }
+  return pedir('/api/admin/anfitriones', { token })
+}
+
+export function decidirAnfitrion(token, idUsuario, decision) {
+  if (!usaApi) {
+    return gestionPrueba.decidirAnfitrion(token, idUsuario, decision)
+  }
+  return pedir('/api/admin/anfitriones/' + idUsuario, { metodo: 'PATCH', cuerpo: decision, token })
 }

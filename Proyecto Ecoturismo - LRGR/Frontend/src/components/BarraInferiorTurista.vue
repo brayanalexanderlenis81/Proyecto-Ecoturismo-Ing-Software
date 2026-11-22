@@ -1,20 +1,33 @@
 <script setup>
 import { computed } from 'vue'
 import IconoBase from './IconoBase.vue'
-import { haySesion } from '../estado/sesion.js'
+import { haySesion, tieneRol } from '../estado/sesion.js'
 
 defineProps({
   activo: { type: String, default: 'explorar' }
 })
 
-const opciones = computed(() => [
-  { clave: 'explorar', texto: 'Explorar', icono: 'brujula', ruta: { name: 'resultados' } },
-  { clave: 'mapa', texto: 'Mapa', icono: 'mapa', ruta: { name: 'resultados', query: { vista: 'mapa' } } },
-  { clave: 'reservas', texto: 'Mis reservas', icono: 'calendario', ruta: { name: 'mis-reservas' } },
-  haySesion()
-    ? { clave: 'perfil', texto: 'Perfil', icono: 'perfil', ruta: { name: 'perfil' } }
-    : { clave: 'perfil', texto: 'Ingresar', icono: 'perfil', ruta: { name: 'iniciar-sesion' } }
-])
+const opciones = computed(() => {
+  const sinSesion = !haySesion()
+  const lista = [{ clave: 'explorar', texto: 'Explorar', icono: 'brujula', ruta: { name: 'resultados' } }]
+  if (sinSesion || tieneRol('turista')) {
+    lista.push({ clave: 'mapa', texto: 'Mapa', icono: 'mapa', ruta: { name: 'resultados', query: { vista: 'mapa' } } })
+    lista.push({ clave: 'reservas', texto: 'Mis reservas', icono: 'calendario', ruta: { name: 'mis-reservas' } })
+  }
+  if (tieneRol('anfitrion')) {
+    lista.push({ clave: 'publicaciones', texto: 'Publicaciones', icono: 'lista', ruta: { name: 'mis-publicaciones' } })
+    lista.push({ clave: 'publicar', texto: 'Publicar', icono: 'mas', ruta: { name: 'publicar' } })
+  }
+  if (tieneRol('administrador')) {
+    lista.push({ clave: 'panel', texto: 'Panel', icono: 'escudo', ruta: { name: 'panel-admin' } })
+  }
+  lista.push(
+    sinSesion
+      ? { clave: 'perfil', texto: 'Ingresar', icono: 'perfil', ruta: { name: 'iniciar-sesion' } }
+      : { clave: 'perfil', texto: 'Perfil', icono: 'perfil', ruta: { name: 'perfil' } }
+  )
+  return lista
+})
 </script>
 
 <template>
@@ -41,7 +54,8 @@ const opciones = computed(() => [
   bottom: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   height: var(--alto-barra-inferior);
   background: var(--color-superficie);
   border-top: 1px solid var(--color-borde);

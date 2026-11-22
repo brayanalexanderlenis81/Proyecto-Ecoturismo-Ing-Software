@@ -3,7 +3,7 @@ import { obtenerSalidas } from './catalogoPrueba.js'
 
 const contrasenaPrueba = 'Prueba123*'
 
-const usuarios = [
+export const usuarios = [
   {
     id_usuario: '1',
     nombre: 'Administrador',
@@ -62,6 +62,18 @@ const usuarios = [
     roles: ['turista'],
     numero_rnt: null,
     estado_verificacion: null,
+    observacion_verificacion: null
+  },
+  {
+    id_usuario: '6',
+    nombre: 'Pedro Martínez',
+    correo: 'pedro@ecoturismo.test',
+    contrasena: contrasenaPrueba,
+    telefono: '3109876543',
+    estado_cuenta: 'activa',
+    roles: ['anfitrion'],
+    numero_rnt: '778899',
+    estado_verificacion: 'pendiente',
     observacion_verificacion: null
   }
 ]
@@ -178,15 +190,15 @@ const resenas = []
 
 const pagos = []
 
-function esperar() {
+export function esperar() {
   return new Promise((resolver) => setTimeout(resolver, 300))
 }
 
-function errorApi(estado, error) {
+export function errorApi(estado, error) {
   return { estado, error }
 }
 
-function usuarioDelToken(token) {
+export function usuarioDelToken(token) {
   const id = String(token || '').replace('token-prueba-', '')
   const usuario = usuarios.find((item) => item.id_usuario === id)
   if (!usuario) {

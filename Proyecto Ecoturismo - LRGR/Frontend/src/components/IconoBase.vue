@@ -8,6 +8,7 @@ const iconos = {
   buscar: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   ajustes: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
   check: '<path d="m5 12 5 5 9-10"/>',
+  mas: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
   casa: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   montana: '<path d="m3 20 6.5-11 4 6.5 2.5-4L21 20z"/><circle cx="17" cy="6" r="2"/>',
   estrella: '<path fill="currentColor" stroke="none" d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"/>',
