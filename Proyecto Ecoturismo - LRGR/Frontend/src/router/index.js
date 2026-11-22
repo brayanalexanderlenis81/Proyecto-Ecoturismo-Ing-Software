@@ -73,6 +73,9 @@ router.beforeEach((destino) => {
     return { name: 'iniciar-sesion', query: { redirigir: destino.fullPath } }
   }
   if (destino.meta.roles && !destino.meta.roles.some(tieneRol)) {
+    if (destino.name === 'confirmar-reserva') {
+      return { name: 'detalle', params: { id: destino.params.id } }
+    }
     return { name: 'resultados' }
   }
   if (destino.meta.soloSinSesion && haySesion()) {

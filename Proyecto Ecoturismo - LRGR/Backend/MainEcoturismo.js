@@ -6,11 +6,12 @@ const jwt= require("jsonwebtoken");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const app = express();
+app.set("trust proxy", 1);
 app.use(helmet());
 const COMISION = 0.10;
-app.use(cors({ origin: ["http://localhost:5173", "http://127.0.0.1:5173"]}));
+app.use(cors({ origin: ["http://localhost:5173", "http://127.0.0.1:5173", "https://ecoturismo-experiencial.vercel.app"]}));
 app.use(express.json());
-const pool = new pg.Pool({ connectionTimeoutMillis: 3000 });
+const pool = new pg.Pool({ connectionTimeoutMillis: 10000 });
 pool.on("error", function (error) {
     console.error("Error en una conexión de PostgreSQL:", error.message);
 });
@@ -324,6 +325,10 @@ app.post("/api/publicaciones", verificarToken, async function (solicitud, respue
     if (datos.tipo !== "alojamiento" && datos.tipo !== "actividad") {
         return respuesta.status(400).json({ error: "El tipo debe ser alojamiento o actividad." });
     }
+    const imagenes = Array.isArray(datos.imagenes) ? datos.imagenes : [];
+    if (imagenes.length > 8) {
+        return respuesta.status(400).json({ error: "Máximo 8 imágenes por publicación." });
+    }
     const cliente = await pool.connect();
     try {
         await cliente.query("BEGIN");
@@ -350,6 +355,12 @@ app.post("/api/publicaciones", verificarToken, async function (solicitud, respue
                  datos.guia_incluido, datos.tiene_seguro, datos.detalle_seguridad]
             );
         }
+        for (let i = 0; i < imagenes.length; i++) {
+            await cliente.query(
+                "INSERT INTO ecoturismo.imagen_publicacion (id_publicacion, ruta_webp, ruta_miniatura, orden) VALUES ($1, $2, $2, $3)",
+                [publicacion.id_publicacion, imagenes[i], i + 1]
+            );
+        }
         await cliente.query("COMMIT");
         respuesta.status(201).json(publicacion);
     } catch (error) {
@@ -368,7 +379,9 @@ app.get("/api/admin/publicaciones", verificarToken, soloAdministrador, async fun
     const resultado = await pool.query(`
         SELECT p.id_publicacion, p.tipo, p.categoria, p.titulo, p.descripcion, p.precio_base, p.capacidad,
                p.direccion_exacta, p.normas, m.nombre AS municipio, m.departamento,
-               u.nombre AS anfitrion, p.creada_en
+               u.nombre AS anfitrion, p.creada_en,
+               ARRAY(SELECT i.ruta_miniatura FROM ecoturismo.imagen_publicacion i
+                     WHERE i.id_publicacion = p.id_publicacion ORDER BY i.orden) AS imagenes
         FROM ecoturismo.publicacion p
         JOIN ecoturismo.municipio m ON m.id_municipio = p.id_municipio
         JOIN ecoturismo.usuario u ON u.id_usuario = p.id_anfitrion
@@ -396,6 +409,44 @@ app.patch("/api/admin/publicaciones/:id", verificarToken, soloAdministrador, asy
         );
         if (resultado.rows.length === 0) {
             return respuesta.status(404).json({ error: "No hay una publicación en revisión con ese id." });
+        }
+        respuesta.json(resultado.rows[0]);
+    } catch (error) {
+        respuesta.status(400).json({ error: error.message });
+    }
+});
+
+app.get("/api/admin/publicaciones/aprobadas", verificarToken, soloAdministrador, async function (solicitud, respuesta) {
+    const resultado = await pool.query(`
+        SELECT p.id_publicacion, p.tipo, p.categoria, p.titulo, p.precio_base,
+               m.nombre AS municipio, m.departamento, u.nombre AS anfitrion, p.moderada_en,
+               (SELECT count(*)::int FROM ecoturismo.reserva r
+                WHERE r.id_publicacion = p.id_publicacion
+                  AND r.estado_reserva IN ('pendiente', 'confirmada')) AS reservas_activas
+        FROM ecoturismo.publicacion p
+        JOIN ecoturismo.municipio m ON m.id_municipio = p.id_municipio
+        JOIN ecoturismo.usuario u ON u.id_usuario = p.id_anfitrion
+        WHERE p.estado_moderacion = 'aprobada'
+        ORDER BY p.moderada_en DESC`
+    );
+    respuesta.json(resultado.rows);
+});
+
+app.patch("/api/admin/publicaciones/:id/retirar", verificarToken, soloAdministrador, async function (solicitud, respuesta) {
+    const motivo = typeof solicitud.body.motivo === "string" ? solicitud.body.motivo.trim() : "";
+    if (!motivo) {
+        return respuesta.status(400).json({ error: "Para retirar una publicación hay que escribir el motivo." });
+    }
+    try {
+        const resultado = await pool.query(
+            `UPDATE ecoturismo.publicacion
+             SET estado_moderacion = 'oculta', motivo = $2, id_moderador = $3, moderada_en = now()
+             WHERE id_publicacion = $1 AND estado_moderacion = 'aprobada'
+             RETURNING id_publicacion, titulo, estado_moderacion, motivo`,
+            [solicitud.params.id, motivo, solicitud.usuario.id_usuario]
+        );
+        if (resultado.rows.length === 0) {
+            return respuesta.status(404).json({ error: "No hay una publicación aprobada con ese id." });
         }
         respuesta.json(resultado.rows[0]);
     } catch (error) {
@@ -604,4 +655,7 @@ app.use(function (error, solicitud, respuesta, siguiente) {
     respuesta.status(500).json({ error: "Ocurrió un error en el servidor." });
 });
 
-app.listen(3000, "127.0.0.1")
+const PUERTO = process.env.PORT || 3000;
+app.listen(PUERTO, function () {
+    console.log("Servidor en el puerto " + PUERTO);
+});

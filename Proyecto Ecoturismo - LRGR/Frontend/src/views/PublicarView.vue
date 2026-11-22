@@ -1,11 +1,11 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import FiltrosRapidos from '../components/FiltrosRapidos.vue'
 import IconoBase from '../components/IconoBase.vue'
-import { obtenerMunicipios, obtenerPerfil, crearPublicacion } from '../datos/servicios.js'
+import { obtenerMunicipios, obtenerPerfil, crearPublicacion, usaCloudinary, subirFoto } from '../datos/servicios.js'
 import { sesion } from '../estado/sesion.js'
 
 const route = useRoute()
@@ -47,6 +47,13 @@ const cargando = ref(true)
 const errorCarga = ref('')
 const enviando = ref(false)
 const error = ref('')
+const fotos = ref([])
+const nuevaFoto = ref('')
+const errorFoto = ref('')
+const MAXIMO_FOTOS = 8
+const MAXIMO_MB = 5
+const selectorFotos = ref(null)
+let siguienteFoto = 0
 
 const esActividad = computed(() => formulario.tipo === 'actividad')
 
@@ -89,6 +96,82 @@ function vacio(valor) {
   return String(valor).trim() === ''
 }
 
+function agregarFoto() {
+  const url = nuevaFoto.value.trim()
+  errorFoto.value = ''
+  if (fotos.value.length >= MAXIMO_FOTOS) {
+    errorFoto.value = 'Puedes agregar máximo ' + MAXIMO_FOTOS + ' fotos.'
+    return
+  }
+  if (!/^https?:\/\//i.test(url)) {
+    errorFoto.value = 'El link debe empezar por http:// o https://.'
+    return
+  }
+  if (fotos.value.some((foto) => foto.url === url)) {
+    errorFoto.value = 'Ya agregaste esa foto.'
+    return
+  }
+  siguienteFoto += 1
+  fotos.value.push({ id: siguienteFoto, vista: url, url, estado: 'lista' })
+  nuevaFoto.value = ''
+}
+
+async function subirUna(foto, archivo) {
+  try {
+    foto.url = await subirFoto(archivo)
+    foto.estado = 'lista'
+  } catch (problema) {
+    foto.estado = 'error'
+  }
+}
+
+function elegirFotos(evento) {
+  const archivos = Array.from(evento.target.files || [])
+  evento.target.value = ''
+  errorFoto.value = ''
+  const problemas = []
+  const libres = MAXIMO_FOTOS - fotos.value.length
+  const validos = archivos.filter((archivo) => {
+    if (!archivo.type.startsWith('image/')) {
+      problemas.push(archivo.name + ' no es una imagen.')
+      return false
+    }
+    if (archivo.size > MAXIMO_MB * 1024 * 1024) {
+      problemas.push(archivo.name + ' pesa más de ' + MAXIMO_MB + ' MB.')
+      return false
+    }
+    return true
+  })
+  if (validos.length > libres) {
+    problemas.push('Puedes subir máximo ' + MAXIMO_FOTOS + ' fotos.')
+  }
+  validos.slice(0, Math.max(libres, 0)).forEach((archivo) => {
+    siguienteFoto += 1
+    const foto = reactive({ id: siguienteFoto, vista: URL.createObjectURL(archivo), url: '', estado: 'subiendo' })
+    fotos.value.push(foto)
+    subirUna(foto, archivo)
+  })
+  errorFoto.value = problemas.join(' ')
+}
+
+function marcarFallo(foto) {
+  if (!usaCloudinary) {
+    foto.estado = 'error'
+  }
+}
+
+function liberarVista(foto) {
+  if (foto.vista.startsWith('blob:')) {
+    URL.revokeObjectURL(foto.vista)
+  }
+}
+
+function quitarFoto(indice) {
+  liberarVista(fotos.value[indice])
+  fotos.value.splice(indice, 1)
+  errorFoto.value = ''
+}
+
 function validar() {
   const obligatorios = [
     ['id_municipio', 'el municipio'],
@@ -114,6 +197,15 @@ function validar() {
   const falta = obligatorios.find(([campo]) => vacio(formulario[campo]))
   if (falta) {
     return 'Falta ' + falta[1] + '.'
+  }
+  if (fotos.value.length === 0) {
+    return 'Agrega al menos una foto del lugar.'
+  }
+  if (fotos.value.some((foto) => foto.estado === 'subiendo')) {
+    return 'Espera a que terminen de subir las fotos.'
+  }
+  if (fotos.value.some((foto) => foto.estado === 'error')) {
+    return usaCloudinary ? 'Quita las fotos que no se pudieron subir.' : 'Quita las fotos que no se pueden ver.'
   }
   if (!(Number(formulario.precio_base) > 0)) {
     return 'El precio debe ser mayor que cero.'
@@ -141,7 +233,8 @@ function cuerpo() {
     direccion_exacta: formulario.direccion_exacta.trim(),
     latitud: Number(formulario.latitud),
     longitud: Number(formulario.longitud),
-    normas: formulario.normas.trim()
+    normas: formulario.normas.trim(),
+    imagenes: fotos.value.map((foto) => foto.url)
   }
   if (esActividad.value) {
     datos.dificultad = formulario.dificultad
@@ -178,6 +271,8 @@ async function enviar() {
 }
 
 onMounted(cargar)
+
+onBeforeUnmount(() => fotos.value.forEach(liberarVista))
 </script>
 
 <template>
@@ -245,6 +340,75 @@ onMounted(cargar)
               <input v-model="formulario.capacidad" type="number" min="1" step="1" inputmode="numeric" />
             </label>
           </div>
+        </section>
+
+        <section class="tarjeta-blanca">
+          <h2 class="subtitulo">Fotos del lugar</h2>
+          <template v-if="usaCloudinary">
+            <input
+              ref="selectorFotos"
+              type="file"
+              accept="image/*"
+              multiple
+              class="selector-oculto"
+              @change="elegirFotos"
+            />
+            <button
+              type="button"
+              class="boton boton-contorno"
+              :disabled="fotos.length >= MAXIMO_FOTOS"
+              @click="selectorFotos.click()"
+            >
+              Subir fotos
+            </button>
+            <p v-if="errorFoto" class="texto-error ayuda" role="alert">{{ errorFoto }}</p>
+            <p class="texto-secundario ayuda">
+              Elige fotos de tu equipo o tómalas con el celular. Máximo {{ MAXIMO_FOTOS }} fotos de hasta
+              {{ MAXIMO_MB }} MB cada una ({{ fotos.length }} de {{ MAXIMO_FOTOS }}).
+            </p>
+          </template>
+
+          <template v-else>
+            <div class="fila-foto">
+              <label class="campo-borde">
+                <span class="campo-borde-etiqueta">Link de la foto</span>
+                <input
+                  v-model="nuevaFoto"
+                  type="url"
+                  placeholder="https://…"
+                  :disabled="fotos.length >= MAXIMO_FOTOS"
+                  @keydown.enter.prevent="agregarFoto"
+                />
+              </label>
+              <button
+                type="button"
+                class="boton boton-contorno"
+                :disabled="fotos.length >= MAXIMO_FOTOS"
+                @click="agregarFoto"
+              >
+                Agregar
+              </button>
+            </div>
+            <p v-if="errorFoto" class="texto-error ayuda" role="alert">{{ errorFoto }}</p>
+            <p class="texto-secundario ayuda">
+              En Unsplash o Pexels, haz clic derecho sobre la foto y elige «Copiar dirección de imagen». Los links de
+              Google Drive no funcionan. Máximo {{ MAXIMO_FOTOS }} fotos ({{ fotos.length }} de {{ MAXIMO_FOTOS }}).
+            </p>
+          </template>
+
+          <ul v-if="fotos.length" class="fotos">
+            <li v-for="(foto, indice) in fotos" :key="foto.id" class="foto" :class="{ 'foto-fallo': foto.estado === 'error' }">
+              <template v-if="foto.estado !== 'error'">
+                <img :src="foto.vista" alt="" @error="marcarFallo(foto)" />
+                <span v-if="foto.estado === 'subiendo'" class="foto-subiendo">Subiendo…</span>
+              </template>
+              <p v-else class="foto-mensaje">
+                {{ usaCloudinary ? 'No se pudo subir esta foto.' : 'No se pudo ver esta foto. Revisa el link.' }}
+              </p>
+              <span v-if="indice === 0" class="foto-portada">Portada</span>
+              <button type="button" class="foto-quitar" @click="quitarFoto(indice)">Quitar</button>
+            </li>
+          </ul>
         </section>
 
         <section class="tarjeta-blanca">
@@ -368,6 +532,95 @@ onMounted(cargar)
 
 .casilla {
   margin-top: var(--espacio-2);
+}
+
+.fila-foto {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--espacio-2);
+}
+
+.fila-foto .campo-borde {
+  flex: 1;
+  min-width: 0;
+}
+
+.selector-oculto {
+  display: none;
+}
+
+.foto-subiendo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: var(--texto-sm);
+  font-weight: var(--peso-medio);
+}
+
+.fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--espacio-3);
+  margin: var(--espacio-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.foto {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-sm);
+}
+
+.foto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.foto-fallo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--color-error);
+  background: var(--estado-cancelada-fondo);
+}
+
+.foto-mensaje {
+  padding: var(--espacio-2);
+  color: var(--estado-cancelada-texto);
+  font-size: var(--texto-sm);
+  text-align: center;
+}
+
+.foto-portada {
+  position: absolute;
+  top: var(--espacio-2);
+  left: var(--espacio-2);
+  padding: 2px var(--espacio-2);
+  border-radius: var(--radio-total);
+  background: var(--color-primario);
+  color: #fff;
+  font-size: var(--texto-sm);
+}
+
+.foto-quitar {
+  position: absolute;
+  right: var(--espacio-2);
+  bottom: var(--espacio-2);
+  padding: 2px var(--espacio-2);
+  border: none;
+  border-radius: var(--radio-total);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: var(--texto-sm);
+  cursor: pointer;
 }
 
 .aviso-rnt {

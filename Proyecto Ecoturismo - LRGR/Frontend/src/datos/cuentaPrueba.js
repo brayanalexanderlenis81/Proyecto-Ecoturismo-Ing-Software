@@ -88,7 +88,7 @@ function horaDesdeAhora(minutos) {
   return new Date(Date.now() + minutos * 60000).toISOString()
 }
 
-const reservas = [
+export const reservas = [
   {
     id_usuario: '4',
     id_reserva: '23',

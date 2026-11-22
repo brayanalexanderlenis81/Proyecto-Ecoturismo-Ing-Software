@@ -16,13 +16,15 @@ const filtros = {
   Todas: '',
   'En revisión': 'en_revision',
   Aprobadas: 'aprobada',
-  Rechazadas: 'rechazada'
+  Rechazadas: 'rechazada',
+  Retiradas: 'oculta'
 }
 
 const estados = {
   en_revision: { texto: 'En revisión', clase: 'estado-pendiente' },
   aprobada: { texto: 'Aprobada', clase: 'estado-confirmada' },
-  rechazada: { texto: 'Rechazada', clase: 'estado-cancelada' }
+  rechazada: { texto: 'Rechazada', clase: 'estado-cancelada' },
+  oculta: { texto: 'Retirada por el administrador', clase: 'estado-cancelada' }
 }
 
 const publicaciones = ref([])
@@ -104,7 +106,10 @@ onMounted(cargar)
             </div>
           </header>
 
-          <p v-if="publicacion.estado_moderacion === 'rechazada'" class="motivo">
+          <p
+            v-if="publicacion.estado_moderacion === 'rechazada' || publicacion.estado_moderacion === 'oculta'"
+            class="motivo"
+          >
             <strong>Motivo:</strong> {{ publicacion.motivo || 'El administrador no escribió un motivo.' }}
           </p>
           <p v-else-if="publicacion.estado_moderacion === 'en_revision'" class="texto-secundario nota">

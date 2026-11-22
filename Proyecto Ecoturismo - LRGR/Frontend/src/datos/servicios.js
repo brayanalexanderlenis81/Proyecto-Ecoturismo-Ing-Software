@@ -8,6 +8,32 @@ import { normalizarTexto } from '../utilidades/formato.js'
 
 export { usaApi }
 
+const nubeCloudinary = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '').trim()
+const presetCloudinary = (import.meta.env.VITE_CLOUDINARY_PRESET || '').trim()
+
+export const usaCloudinary = nubeCloudinary !== '' && presetCloudinary !== ''
+
+export async function subirFoto(archivo) {
+  const datos = new FormData()
+  datos.append('file', archivo)
+  datos.append('upload_preset', presetCloudinary)
+  let respuesta
+  try {
+    respuesta = await fetch('https://api.cloudinary.com/v1_1/' + nubeCloudinary + '/image/upload', {
+      method: 'POST',
+      body: datos
+    })
+  } catch (error) {
+    throw { estado: 0, error: 'No pudimos conectar para subir la foto.' }
+  }
+  const resultado = await respuesta.json().catch(() => null)
+  if (!respuesta.ok || !resultado || !resultado.secure_url) {
+    const mensaje = resultado && resultado.error ? resultado.error.message : 'No se pudo subir la foto.'
+    throw { estado: respuesta.status, error: mensaje }
+  }
+  return resultado.secure_url
+}
+
 let municipiosGuardados = null
 
 export function iniciarSesion(credenciales) {
@@ -176,6 +202,20 @@ export function decidirPublicacion(token, idPublicacion, decision) {
     return gestionPrueba.decidirPublicacion(token, idPublicacion, decision)
   }
   return pedir('/api/admin/publicaciones/' + idPublicacion, { metodo: 'PATCH', cuerpo: decision, token })
+}
+
+export function obtenerPublicacionesAprobadas(token) {
+  if (!usaApi) {
+    return gestionPrueba.obtenerPublicacionesAprobadas(token)
+  }
+  return pedir('/api/admin/publicaciones/aprobadas', { token })
+}
+
+export function retirarPublicacion(token, idPublicacion, motivo) {
+  if (!usaApi) {
+    return gestionPrueba.retirarPublicacion(token, idPublicacion, { motivo })
+  }
+  return pedir('/api/admin/publicaciones/' + idPublicacion + '/retirar', { metodo: 'PATCH', cuerpo: { motivo }, token })
 }
 
 export function obtenerAnfitrionesPendientes(token) {

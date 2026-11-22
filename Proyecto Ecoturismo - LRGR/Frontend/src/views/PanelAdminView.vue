@@ -5,11 +5,14 @@ import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import FiltrosRapidos from '../components/FiltrosRapidos.vue'
 import AccionesRevision from '../components/AccionesRevision.vue'
+import AccionRetirar from '../components/AccionRetirar.vue'
 import {
   obtenerPublicacionesEnRevision,
   decidirPublicacion,
   obtenerAnfitrionesPendientes,
-  decidirAnfitrion
+  decidirAnfitrion,
+  obtenerPublicacionesAprobadas,
+  retirarPublicacion
 } from '../datos/servicios.js'
 import { sesion } from '../estado/sesion.js'
 import { formatearPrecio, formatearDia } from '../utilidades/formato.js'
@@ -17,23 +20,30 @@ import { formatearPrecio, formatearDia } from '../utilidades/formato.js'
 const route = useRoute()
 const router = useRouter()
 
-const pestanas = { Publicaciones: 'publicaciones', Anfitriones: 'anfitriones' }
+const pestanas = { Publicaciones: 'publicaciones', Anfitriones: 'anfitriones', Publicadas: 'publicadas' }
 
 const publicaciones = ref([])
 const anfitriones = ref([])
+const aprobadas = ref([])
 const cargando = ref(true)
 const errorCarga = ref('')
 const ocupada = ref('')
 const mensaje = ref('')
 const errores = reactive({})
+const fotosFallidas = reactive({})
 
-const pestana = computed(() => (route.query.pestana === 'anfitriones' ? 'anfitriones' : 'publicaciones'))
+const pestana = computed(() =>
+  route.query.pestana === 'anfitriones' || route.query.pestana === 'publicadas' ? route.query.pestana : 'publicaciones'
+)
 
 const pestanaVisible = computed(() => Object.keys(pestanas).find((texto) => pestanas[texto] === pestana.value))
 
 function cambiarPestana(texto) {
   mensaje.value = ''
-  router.replace({ name: 'panel-admin', query: pestanas[texto] === 'anfitriones' ? { pestana: 'anfitriones' } : {} })
+  router.replace({
+    name: 'panel-admin',
+    query: pestanas[texto] === 'publicaciones' ? {} : { pestana: pestanas[texto] }
+  })
 }
 
 function manejarError(problema, clave) {
@@ -53,12 +63,14 @@ async function cargar() {
   cargando.value = true
   errorCarga.value = ''
   try {
-    const [listaPublicaciones, listaAnfitriones] = await Promise.all([
+    const [listaPublicaciones, listaAnfitriones, listaAprobadas] = await Promise.all([
       obtenerPublicacionesEnRevision(sesion.token),
-      obtenerAnfitrionesPendientes(sesion.token)
+      obtenerAnfitrionesPendientes(sesion.token),
+      obtenerPublicacionesAprobadas(sesion.token)
     ])
     publicaciones.value = listaPublicaciones
     anfitriones.value = listaAnfitriones
+    aprobadas.value = listaAprobadas
   } catch (problema) {
     manejarError(problema)
   } finally {
@@ -76,6 +88,25 @@ async function revisarPublicacion(publicacion, decision, motivo) {
     await decidirPublicacion(sesion.token, publicacion.id_publicacion, cuerpo)
     publicaciones.value = publicaciones.value.filter((item) => item.id_publicacion !== publicacion.id_publicacion)
     mensaje.value = (decision === 'aprobada' ? 'Aprobaste' : 'Rechazaste') + ' «' + publicacion.titulo + '».'
+    if (decision === 'aprobada') {
+      aprobadas.value = await obtenerPublicacionesAprobadas(sesion.token)
+    }
+  } catch (problema) {
+    manejarError(problema, clave)
+  } finally {
+    ocupada.value = ''
+  }
+}
+
+async function retirar(publicacion, motivo) {
+  const clave = 'r' + publicacion.id_publicacion
+  ocupada.value = clave
+  errores[clave] = ''
+  mensaje.value = ''
+  try {
+    await retirarPublicacion(sesion.token, publicacion.id_publicacion, motivo)
+    aprobadas.value = aprobadas.value.filter((item) => item.id_publicacion !== publicacion.id_publicacion)
+    mensaje.value = 'Retiraste «' + publicacion.titulo + '». El anfitrión verá el motivo en Mis publicaciones.'
   } catch (problema) {
     manejarError(problema, clave)
   } finally {
@@ -166,6 +197,25 @@ onMounted(cargar)
               </div>
             </dl>
 
+            <ul v-if="publicacion.imagenes && publicacion.imagenes.length" class="fotos">
+              <li
+                v-for="(imagen, indice) in publicacion.imagenes"
+                :key="indice"
+                class="foto"
+                :class="{ 'foto-fallo': fotosFallidas[publicacion.id_publicacion + '-' + indice] }"
+              >
+                <img
+                  v-if="!fotosFallidas[publicacion.id_publicacion + '-' + indice]"
+                  :src="imagen"
+                  :alt="'Foto ' + (indice + 1) + ' de ' + publicacion.titulo"
+                  loading="lazy"
+                  @error="fotosFallidas[publicacion.id_publicacion + '-' + indice] = true"
+                />
+                <p v-else class="foto-mensaje">No se pudo ver esta foto. Revisa el link.</p>
+              </li>
+            </ul>
+            <p v-else class="bloque-texto">Esta publicación no tiene fotos.</p>
+
             <p class="bloque-texto">{{ publicacion.descripcion }}</p>
             <p class="bloque-texto"><strong>Dirección exacta:</strong> {{ publicacion.direccion_exacta }}</p>
             <p class="bloque-texto"><strong>Normas:</strong> {{ publicacion.normas }}</p>
@@ -185,7 +235,7 @@ onMounted(cargar)
         <p v-else class="tarjeta-blanca estado-lista texto-secundario">No hay publicaciones esperando revisión.</p>
       </template>
 
-      <template v-else>
+      <template v-else-if="pestana === 'anfitriones'">
         <p class="texto-secundario contador">
           {{ anfitriones.length === 1 ? '1 anfitrión espera' : anfitriones.length + ' anfitriones esperan' }}
           la verificación del RNT
@@ -225,6 +275,61 @@ onMounted(cargar)
           </article>
         </div>
         <p v-else class="tarjeta-blanca estado-lista texto-secundario">No hay anfitriones esperando verificación.</p>
+      </template>
+
+      <template v-else>
+        <p class="texto-secundario contador">
+          {{ aprobadas.length === 1 ? '1 publicación está publicada' : aprobadas.length + ' publicaciones están publicadas' }}
+        </p>
+
+        <div v-if="aprobadas.length" class="lista">
+          <article v-for="publicacion in aprobadas" :key="publicacion.id_publicacion" class="tarjeta-blanca">
+            <header class="cabecera">
+              <div>
+                <h2 class="titulo">{{ publicacion.titulo }}</h2>
+                <p class="texto-secundario detalle">
+                  {{ publicacion.categoria }} · {{ publicacion.municipio }}, {{ publicacion.departamento }}
+                </p>
+              </div>
+              <span class="etiqueta-estado estado-confirmada">
+                {{ publicacion.tipo === 'actividad' ? 'Actividad' : 'Alojamiento' }}
+              </span>
+            </header>
+
+            <dl class="datos">
+              <div class="fila">
+                <dt>Anfitrión</dt>
+                <dd>{{ publicacion.anfitrion }}</dd>
+              </div>
+              <div class="fila">
+                <dt>Aprobada</dt>
+                <dd>{{ formatearDia(publicacion.moderada_en) }}</dd>
+              </div>
+              <div class="fila">
+                <dt>Precio</dt>
+                <dd>
+                  {{ formatearPrecio(Number(publicacion.precio_base)) }} /
+                  {{ publicacion.tipo === 'actividad' ? 'persona' : 'noche' }}
+                </dd>
+              </div>
+              <div class="fila">
+                <dt>Reservas activas</dt>
+                <dd>{{ publicacion.reservas_activas }}</dd>
+              </div>
+            </dl>
+
+            <p v-if="errores['r' + publicacion.id_publicacion]" class="texto-error error-tarjeta">
+              {{ errores['r' + publicacion.id_publicacion] }}
+            </p>
+
+            <AccionRetirar
+              :ocupada="ocupada === 'r' + publicacion.id_publicacion"
+              :reservas-activas="Number(publicacion.reservas_activas)"
+              @retirar="retirar(publicacion, $event)"
+            />
+          </article>
+        </div>
+        <p v-else class="tarjeta-blanca estado-lista texto-secundario">No hay publicaciones publicadas.</p>
       </template>
     </main>
 
@@ -300,6 +405,47 @@ onMounted(cargar)
 
 .capital {
   text-transform: capitalize;
+}
+
+.fotos {
+  display: flex;
+  gap: var(--espacio-2);
+  margin: var(--espacio-3) 0 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.foto {
+  flex: 0 0 auto;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-sm);
+  background: var(--color-borde);
+}
+
+.foto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.foto-fallo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--color-error);
+  background: var(--estado-cancelada-fondo);
+}
+
+.foto-mensaje {
+  padding: var(--espacio-1);
+  color: var(--estado-cancelada-texto);
+  font-size: var(--texto-xs);
+  text-align: center;
 }
 
 .bloque-texto {

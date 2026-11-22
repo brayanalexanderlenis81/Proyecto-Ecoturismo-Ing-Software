@@ -11,7 +11,8 @@ import {
 
 const props = defineProps({
   publicacion: { type: Object, required: true },
-  busqueda: { type: Object, required: true }
+  busqueda: { type: Object, required: true },
+  avisoReserva: { type: String, default: '' }
 })
 
 const emit = defineEmits(['volver', 'reservar', 'editar-fechas'])
@@ -34,7 +35,7 @@ function cambiarFoto(evento) {
 </script>
 
 <template>
-  <article class="detalle">
+  <article class="detalle" :class="{ 'detalle-con-aviso': avisoReserva }">
     <div class="galeria-contenedor">
       <div class="galeria" @scroll="cambiarFoto">
         <ImagenPublicacion
@@ -137,7 +138,10 @@ function cambiarFoto(evento) {
             {{ formatearRangoFechas(busqueda.fechaInicio, busqueda.fechaFin) }} · {{ textoPersonas(busqueda.personas) }}
           </button>
         </div>
-        <button type="button" class="boton boton-primario boton-reservar" @click="emit('reservar')">Reservar</button>
+        <p v-if="avisoReserva" class="aviso-reserva" role="status">{{ avisoReserva }}</p>
+        <button v-else type="button" class="boton boton-primario boton-reservar" @click="emit('reservar')">
+          Reservar
+        </button>
       </aside>
     </div>
   </article>
@@ -374,6 +378,23 @@ function cambiarFoto(evento) {
 .boton-reservar {
   flex-shrink: 0;
   min-width: 120px;
+}
+
+.detalle-con-aviso {
+  padding-bottom: 180px;
+}
+
+.detalle-con-aviso .barra-reserva {
+  flex-wrap: wrap;
+}
+
+.aviso-reserva {
+  flex-basis: 100%;
+  padding: var(--espacio-3) var(--espacio-4);
+  border-radius: var(--radio-sm);
+  background: var(--estado-pendiente-fondo);
+  color: var(--estado-pendiente-texto);
+  font-size: var(--texto-sm);
 }
 
 @media (min-width: 1024px) {

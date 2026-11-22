@@ -1,10 +1,11 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import DetallePublicacion from '../components/DetallePublicacion.vue'
 import { obtenerPublicacion } from '../datos/servicios.js'
 import { busqueda, actualizarBusqueda } from '../estado/busqueda.js'
+import { avisoReservas } from '../estado/sesion.js'
 
 const props = defineProps({
   id: { type: String, required: true }
@@ -15,6 +16,7 @@ const router = useRouter()
 const publicacion = ref(null)
 const cargando = ref(true)
 const error = ref('')
+const avisoReserva = computed(avisoReservas)
 
 async function cargar() {
   cargando.value = true
@@ -57,6 +59,7 @@ function reservar() {
       v-else-if="publicacion"
       :publicacion="publicacion"
       :busqueda="busqueda"
+      :aviso-reserva="avisoReserva"
       @volver="volver"
       @reservar="reservar"
       @editar-fechas="volver"

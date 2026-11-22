@@ -1,4 +1,4 @@
-import { usuarios, esperar, errorApi, usuarioDelToken } from './cuentaPrueba.js'
+import { usuarios, reservas, esperar, errorApi, usuarioDelToken } from './cuentaPrueba.js'
 import { municipios, obtenerSalidas, agregarSalida } from './catalogoPrueba.js'
 
 function haceDias(dias) {
@@ -183,6 +183,7 @@ export async function crearPublicacion(token, datos) {
     capacidad: Number(datos.capacidad),
     direccion_exacta: String(datos.direccion_exacta).trim(),
     normas: String(datos.normas).trim(),
+    imagenes: Array.isArray(datos.imagenes) ? datos.imagenes : [],
     estado_moderacion: 'en_revision',
     motivo: null,
     pausada: false,
@@ -261,7 +262,8 @@ export async function obtenerPublicacionesEnRevision(token) {
         municipio: municipio.nombre || '',
         departamento: municipio.departamento || '',
         anfitrion: anfitrion.nombre || '',
-        creada_en: item.creada_en
+        creada_en: item.creada_en,
+        imagenes: item.imagenes || []
       }
     })
 }
@@ -283,6 +285,59 @@ export async function decidirPublicacion(token, idPublicacion, { decision, motiv
   }
   publicacion.estado_moderacion = decision
   publicacion.motivo = motivo ? String(motivo).trim() : null
+  publicacion.moderada_en = new Date().toISOString()
+  return {
+    id_publicacion: publicacion.id_publicacion,
+    titulo: publicacion.titulo,
+    estado_moderacion: publicacion.estado_moderacion,
+    motivo: publicacion.motivo
+  }
+}
+
+export async function obtenerPublicacionesAprobadas(token) {
+  await esperar()
+  conRol(token, 'administrador', 'Solo un administrador puede hacer esto.')
+  return publicaciones
+    .filter((item) => item.estado_moderacion === 'aprobada')
+    .map((item) => {
+      const municipio = municipios.find((lugar) => lugar.id_municipio === item.id_municipio) || {}
+      const anfitrion = usuarios.find((persona) => persona.id_usuario === item.id_anfitrion) || {}
+      return {
+        id_publicacion: item.id_publicacion,
+        tipo: item.tipo,
+        categoria: item.categoria,
+        titulo: item.titulo,
+        precio_base: item.precio_base,
+        municipio: municipio.nombre || '',
+        departamento: municipio.departamento || '',
+        anfitrion: anfitrion.nombre || '',
+        moderada_en: item.moderada_en || item.creada_en,
+        reservas_activas: reservas.filter(
+          (reserva) =>
+            reserva.id_publicacion === item.id_publicacion &&
+            (reserva.estado_reserva === 'pendiente' || reserva.estado_reserva === 'confirmada')
+        ).length
+      }
+    })
+    .sort((a, b) => new Date(b.moderada_en) - new Date(a.moderada_en))
+}
+
+export async function retirarPublicacion(token, idPublicacion, { motivo }) {
+  await esperar()
+  conRol(token, 'administrador', 'Solo un administrador puede hacer esto.')
+  const texto = typeof motivo === 'string' ? motivo.trim() : ''
+  if (!texto) {
+    throw errorApi(400, 'Para retirar una publicación hay que escribir el motivo.')
+  }
+  const publicacion = publicaciones.find(
+    (item) => item.id_publicacion === String(idPublicacion) && item.estado_moderacion === 'aprobada'
+  )
+  if (!publicacion) {
+    throw errorApi(404, 'No hay una publicación aprobada con ese id.')
+  }
+  publicacion.estado_moderacion = 'oculta'
+  publicacion.motivo = texto
+  publicacion.moderada_en = new Date().toISOString()
   return {
     id_publicacion: publicacion.id_publicacion,
     titulo: publicacion.titulo,

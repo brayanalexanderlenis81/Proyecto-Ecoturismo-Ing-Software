@@ -57,6 +57,19 @@ export function tieneRol(rol) {
   return haySesion() && Boolean(sesion.usuario) && (sesion.usuario.roles || []).includes(rol)
 }
 
+export function avisoReservas() {
+  if (tieneRol('turista')) {
+    return ''
+  }
+  if (tieneRol('administrador')) {
+    return 'Las reservas son solo para cuentas de turista. Tu cuenta de administrador sirve para revisar publicaciones y anfitriones.'
+  }
+  if (tieneRol('anfitrion')) {
+    return 'Las reservas son solo para cuentas de turista. Con tu cuenta de anfitrión puedes publicar y administrar tus lugares.'
+  }
+  return ''
+}
+
 export function inicioSegunRol() {
   if (tieneRol('administrador')) {
     return { name: 'panel-admin' }
