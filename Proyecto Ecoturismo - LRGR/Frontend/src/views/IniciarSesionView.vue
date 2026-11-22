@@ -3,7 +3,7 @@ import { ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
-import { iniciarSesion } from '../datos/cuentaPrueba.js'
+import { iniciarSesion } from '../datos/servicios.js'
 import { guardarSesion } from '../estado/sesion.js'
 
 const route = useRoute()

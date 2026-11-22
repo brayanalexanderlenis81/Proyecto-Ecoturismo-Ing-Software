@@ -5,7 +5,7 @@ import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import FiltrosRapidos from '../components/FiltrosRapidos.vue'
 import TarjetaReserva from '../components/TarjetaReserva.vue'
-import { obtenerMisReservas, cancelarReserva, crearResena } from '../datos/cuentaPrueba.js'
+import { obtenerMisReservas, cancelarReserva, crearResena } from '../datos/servicios.js'
 import { sesion, cerrarSesion } from '../estado/sesion.js'
 
 const router = useRouter()

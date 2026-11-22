@@ -4,9 +4,7 @@ import glampingMiradorValle from '../assets/imagenes/glamping-mirador-valle.jpg'
 import caminataCocora from '../assets/imagenes/caminata-cocora.jpg'
 
 export const busquedaInicial = {
-  destino: 'Salento, Quindío',
-  fechaInicio: '2026-11-20',
-  fechaFin: '2026-11-22',
+  destino: '',
   personas: 2
 }
 
@@ -164,7 +162,3 @@ export const publicaciones = [
     mapa: { x: 80, y: 85 }
   }
 ]
-
-export function buscarPublicacion(id) {
-  return publicaciones.find((publicacion) => publicacion.id === Number(id))
-}

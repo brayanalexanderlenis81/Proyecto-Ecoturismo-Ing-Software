@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import FiltrosRapidos from '../components/FiltrosRapidos.vue'
@@ -8,45 +8,42 @@ import ListaResultados from '../components/ListaResultados.vue'
 import MapaResultados from '../components/MapaResultados.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import IconoBase from '../components/IconoBase.vue'
-import { publicaciones, tipos, categorias, rangoPrecio } from '../datos/publicaciones.js'
+import { tipos, categorias, rangoPrecio } from '../datos/publicaciones.js'
+import { buscarPublicaciones } from '../datos/servicios.js'
 import { busqueda, actualizarBusqueda } from '../estado/busqueda.js'
 
 const route = useRoute()
 const router = useRouter()
 
-const filtrosIniciales = {
+const rango = reactive({ ...rangoPrecio })
+
+const filtros = reactive({
   tipo: 'Todos',
   categorias: [],
-  precioMinimo: rangoPrecio.minimo,
-  precioMaximo: rangoPrecio.maximo
-}
+  precioMinimo: rango.minimo,
+  precioMaximo: rango.maximo
+})
 
-const filtros = reactive({ ...filtrosIniciales, categorias: [] })
+const publicaciones = ref([])
+const cargando = ref(true)
+const errorCarga = ref('')
 const activa = ref(null)
 const filtrosAbiertos = ref(false)
 
 const vistaMapa = computed(() => route.query.vista === 'mapa')
 
-function normalizar(texto) {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-}
+const categoriasDisponibles = computed(() => [
+  ...new Set([...categorias, ...publicaciones.value.map((publicacion) => publicacion.categoria)])
+])
 
-const resultados = computed(() => {
-  const destino = normalizar(busqueda.destino)
-  return publicaciones.filter((publicacion) => {
-    const coincideDestino =
-      destino.trim() === '' ||
-      destino.includes(normalizar(publicacion.ciudad)) ||
-      destino.includes(normalizar(publicacion.departamento))
+const resultados = computed(() =>
+  publicaciones.value.filter((publicacion) => {
     const coincideTipo = filtros.tipo === 'Todos' || publicacion.tipo === filtros.tipo
     const coincideCategoria = filtros.categorias.length === 0 || filtros.categorias.includes(publicacion.categoria)
     const coincidePrecio = publicacion.precio >= filtros.precioMinimo && publicacion.precio <= filtros.precioMaximo
-    return coincideDestino && coincideTipo && coincideCategoria && coincidePrecio
+    return coincideTipo && coincideCategoria && coincidePrecio
   })
-})
+)
 
 const titulo = computed(() => {
   const lugar = busqueda.destino.split(',')[0].trim() || 'todos los destinos'
@@ -54,12 +51,38 @@ const titulo = computed(() => {
   return cantidad === 1 ? '1 plan en ' + lugar : cantidad + ' planes en ' + lugar
 })
 
+function ajustarRango() {
+  const precios = publicaciones.value.map((publicacion) => publicacion.precio)
+  const mayor = precios.length ? Math.ceil(Math.max(...precios) / 50000) * 50000 : 0
+  const nuevoMaximo = Math.max(rangoPrecio.maximo, mayor)
+  if (filtros.precioMaximo === rango.maximo) {
+    filtros.precioMaximo = nuevoMaximo
+  }
+  rango.maximo = nuevoMaximo
+}
+
+async function cargar() {
+  cargando.value = true
+  errorCarga.value = ''
+  try {
+    publicaciones.value = await buscarPublicaciones({ destino: busqueda.destino, personas: busqueda.personas })
+    ajustarRango()
+  } catch (problema) {
+    publicaciones.value = []
+    errorCarga.value = problema.error || 'No pudimos cargar los planes. Intenta de nuevo.'
+  } finally {
+    cargando.value = false
+  }
+}
+
+watch(() => [busqueda.destino, busqueda.personas], cargar, { immediate: true })
+
 function actualizarFiltros(nuevosFiltros) {
   Object.assign(filtros, nuevosFiltros)
 }
 
 function limpiarFiltros() {
-  Object.assign(filtros, { ...filtrosIniciales, categorias: [] })
+  Object.assign(filtros, { tipo: 'Todos', categorias: [], precioMinimo: rango.minimo, precioMaximo: rango.maximo })
 }
 
 function seleccionarTipo(tipo) {
@@ -89,8 +112,8 @@ function cambiarVista() {
           <FiltrosLateral
             :filtros="filtros"
             :tipos="tipos"
-            :categorias="categorias"
-            :rango-precio="rangoPrecio"
+            :categorias="categoriasDisponibles"
+            :rango-precio="rango"
             @actualizar="actualizarFiltros"
             @limpiar="limpiarFiltros"
           />
@@ -98,7 +121,18 @@ function cambiarVista() {
       </div>
 
       <div class="columna-lista">
-        <ListaResultados :publicaciones="resultados" :titulo="titulo" :activa="activa" @enfocar="activa = $event" />
+        <p v-if="cargando" class="aviso-carga">Buscando planes…</p>
+        <div v-else-if="errorCarga" class="aviso-carga tarjeta-blanca">
+          <p class="texto-error">{{ errorCarga }}</p>
+          <button type="button" class="boton boton-contorno" @click="cargar">Reintentar</button>
+        </div>
+        <ListaResultados
+          v-else
+          :publicaciones="resultados"
+          :titulo="titulo"
+          :activa="activa"
+          @enfocar="activa = $event"
+        />
       </div>
 
       <div class="columna-mapa">
@@ -129,6 +163,16 @@ function cambiarVista() {
 
 .contenido {
   padding: var(--espacio-4);
+}
+
+.aviso-carga {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-3);
+  padding: var(--espacio-8) var(--espacio-4);
+  text-align: center;
+  color: var(--color-texto-secundario);
 }
 
 .columna-filtros {

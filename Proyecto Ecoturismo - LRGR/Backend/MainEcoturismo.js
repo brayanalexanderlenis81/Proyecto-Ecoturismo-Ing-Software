@@ -63,7 +63,10 @@ app.get("/", function (solicitud, respuesta) {
 app.get("/api/alojamientos", async function (solicitud, respuesta) {
     const filtros = solicitud.query;
     const resultado = await pool.query(
-        `SELECT * FROM ecoturismo.v_publicaciones_busqueda
+        `SELECT v.*,
+                (SELECT i.ruta_miniatura FROM ecoturismo.imagen_publicacion i
+                 WHERE i.id_publicacion = v.id_publicacion AND i.orden = 1) AS imagen
+         FROM ecoturismo.v_publicaciones_busqueda v
          WHERE tipo = 'alojamiento'
            AND ($1::text IS NULL OR titulo ILIKE '%' || $1 || '%' OR descripcion ILIKE '%' || $1 || '%' OR municipio ILIKE '%' || $1 || '%')
            AND ($2::bigint IS NULL OR id_publicacion IN (SELECT id_publicacion FROM ecoturismo.publicacion WHERE id_municipio = $2))
@@ -78,7 +81,10 @@ app.get("/api/alojamientos", async function (solicitud, respuesta) {
 app.get("/api/actividades", async function (solicitud, respuesta) {
     const filtros = solicitud.query;
     const resultado = await pool.query(
-        `SELECT * FROM ecoturismo.v_publicaciones_busqueda
+        `SELECT v.*,
+                (SELECT i.ruta_miniatura FROM ecoturismo.imagen_publicacion i
+                 WHERE i.id_publicacion = v.id_publicacion AND i.orden = 1) AS imagen
+         FROM ecoturismo.v_publicaciones_busqueda v
          WHERE tipo = 'actividad'
            AND ($1::text IS NULL OR titulo ILIKE '%' || $1 || '%' OR descripcion ILIKE '%' || $1 || '%' OR municipio ILIKE '%' || $1 || '%')
            AND ($2::bigint IS NULL OR id_publicacion IN (SELECT id_publicacion FROM ecoturismo.publicacion WHERE id_municipio = $2))

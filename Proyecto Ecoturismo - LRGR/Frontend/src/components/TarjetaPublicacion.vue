@@ -1,5 +1,6 @@
 <script setup>
 import IconoBase from './IconoBase.vue'
+import ImagenPublicacion from './ImagenPublicacion.vue'
 import { formatearPrecio, formatearCalificacion, textoSubtitulo } from '../utilidades/formato.js'
 
 defineProps({
@@ -18,8 +19,8 @@ const emit = defineEmits(['enfocar'])
     @mouseenter="emit('enfocar', publicacion.id)"
     @focus="emit('enfocar', publicacion.id)"
   >
-    <div v-if="publicacion.imagenes.length" class="foto">
-      <img :src="publicacion.imagenes[0]" :alt="publicacion.nombre" loading="lazy" />
+    <div class="foto">
+      <ImagenPublicacion :src="publicacion.imagenes[0] || ''" :alt="publicacion.nombre" :tipo="publicacion.tipo" />
       <span v-if="publicacion.destacado" class="insignia">Destacado</span>
     </div>
 
@@ -63,12 +64,6 @@ const emit = defineEmits(['enfocar'])
   position: relative;
   aspect-ratio: 16 / 8.5;
   background: var(--color-mapa);
-}
-
-.foto img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .insignia {

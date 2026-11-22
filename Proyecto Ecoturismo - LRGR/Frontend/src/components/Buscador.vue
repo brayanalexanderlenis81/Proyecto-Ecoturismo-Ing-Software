@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import IconoBase from './IconoBase.vue'
-import { formatearRangoFechas, textoPersonas } from '../utilidades/formato.js'
+import { formatearRangoFechas, textoPersonas, sumarDias } from '../utilidades/formato.js'
 
 const props = defineProps({
   busqueda: { type: Object, required: true }
@@ -25,9 +25,7 @@ const opcionesPersonas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 function cambiarInicio() {
   if (formulario.fechaFin <= formulario.fechaInicio) {
-    const siguiente = new Date(formulario.fechaInicio + 'T00:00:00')
-    siguiente.setDate(siguiente.getDate() + 1)
-    formulario.fechaFin = siguiente.toISOString().slice(0, 10)
+    formulario.fechaFin = sumarDias(formulario.fechaInicio, 1)
   }
 }
 
@@ -43,7 +41,7 @@ function buscar() {
     <button type="button" class="resumen" @click="abierto = !abierto">
       <IconoBase nombre="buscar" />
       <span class="resumen-texto">
-        <strong>{{ busqueda.destino }}</strong>
+        <strong>{{ busqueda.destino || '¿A dónde vas?' }}</strong>
         <span>{{ formatearRangoFechas(busqueda.fechaInicio, busqueda.fechaFin) }} · {{ textoPersonas(busqueda.personas) }}</span>
       </span>
     </button>

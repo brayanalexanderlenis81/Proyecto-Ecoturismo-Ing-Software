@@ -1,13 +1,24 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import IconoBase from './IconoBase.vue'
-import { formatearPrecio, formatearRangoFechas, calcularNoches, textoPersonas } from '../utilidades/formato.js'
+import ImagenPublicacion from './ImagenPublicacion.vue'
+import {
+  formatearPrecio,
+  formatearRangoFechas,
+  formatearFechaHora,
+  formatearHora,
+  calcularNoches,
+  textoPersonas
+} from '../utilidades/formato.js'
 
 const props = defineProps({
   publicacion: { type: Object, required: true },
   busqueda: { type: Object, required: true },
   contactoInicial: { type: Object, required: true },
-  tarifaServicio: { type: Number, required: true }
+  tarifaServicio: { type: Number, required: true },
+  salidas: { type: Array, default: () => [] },
+  enviando: { type: Boolean, default: false },
+  error: { type: String, default: '' }
 })
 
 const emit = defineEmits(['volver', 'continuar'])
@@ -16,6 +27,23 @@ const contacto = reactive({ ...props.contactoInicial })
 const aceptaReglas = ref(false)
 const verReglas = ref(false)
 const intentoEnviar = ref(false)
+
+const esActividad = computed(() => props.publicacion.tipo === 'Actividad')
+
+const primeraConCupo = props.salidas.find((salida) => salida.cuposDisponibles >= props.busqueda.personas)
+const salidaId = ref(primeraConCupo ? primeraConCupo.id : null)
+
+const salidaElegida = computed(() => props.salidas.find((salida) => salida.id === salidaId.value) || null)
+
+const textoSalida = computed(() =>
+  salidaElegida.value
+    ? formatearFechaHora(salidaElegida.value.inicio) + ' – ' + formatearHora(salidaElegida.value.fin)
+    : 'Elige una salida'
+)
+
+const salidaValida = computed(
+  () => !esActividad.value || (salidaElegida.value !== null && salidaElegida.value.cuposDisponibles >= props.busqueda.personas)
+)
 
 const noches = computed(() => calcularNoches(props.busqueda.fechaInicio, props.busqueda.fechaFin))
 
@@ -35,11 +63,11 @@ const total = computed(() => subtotal.value + tarifa.value)
 
 const contactoValido = computed(() => contacto.nombre.trim() !== '' && contacto.telefono.replace(/\D/g, '').length >= 7)
 
-const puedeContinuar = computed(() => contactoValido.value && aceptaReglas.value)
+const puedeContinuar = computed(() => contactoValido.value && aceptaReglas.value && salidaValida.value)
 
 function continuar() {
   intentoEnviar.value = true
-  if (!puedeContinuar.value) {
+  if (!puedeContinuar.value || props.enviando) {
     return
   }
   emit('continuar', {
@@ -47,6 +75,7 @@ function continuar() {
     fechaInicio: props.busqueda.fechaInicio,
     fechaFin: props.busqueda.fechaFin,
     personas: props.busqueda.personas,
+    idSalida: esActividad.value && salidaElegida.value ? salidaElegida.value.id : null,
     total: total.value,
     contactoEmergencia: { ...contacto }
   })
@@ -65,15 +94,24 @@ function continuar() {
     <div class="contenido">
       <div class="tarjeta">
         <div class="resumen">
-          <img v-if="publicacion.imagenes.length" :src="publicacion.imagenes[0]" :alt="publicacion.nombre" class="miniatura" />
-          <div v-else class="miniatura"></div>
+          <ImagenPublicacion
+            class="miniatura"
+            :src="publicacion.imagenes[0] || ''"
+            :alt="publicacion.nombre"
+            :tipo="publicacion.tipo"
+            :tamano-icono="32"
+          />
           <div>
             <p class="resumen-nombre">{{ publicacion.nombre }}</p>
             <p class="texto-gris">{{ publicacion.categoria }} · {{ publicacion.ciudad }}, {{ publicacion.departamento }}</p>
           </div>
         </div>
         <dl class="datos">
-          <div class="fila">
+          <div v-if="esActividad" class="fila">
+            <dt>Salida</dt>
+            <dd>{{ textoSalida }}</dd>
+          </div>
+          <div v-else class="fila">
             <dt>Fechas</dt>
             <dd>{{ formatearRangoFechas(busqueda.fechaInicio, busqueda.fechaFin, true) }} · {{ textoNoches }}</dd>
           </div>
@@ -82,6 +120,32 @@ function continuar() {
             <dd>{{ textoPersonas(busqueda.personas) }}</dd>
           </div>
         </dl>
+      </div>
+
+      <div v-if="esActividad" class="tarjeta tarjeta-amplia">
+        <h2 class="titulo-tarjeta">Elige la salida</h2>
+        <p v-if="salidas.length === 0" class="texto-gris">Esta actividad no tiene salidas abiertas por ahora.</p>
+        <label
+          v-for="salida in salidas"
+          :key="salida.id"
+          class="salida"
+          :class="{ elegida: salida.id === salidaId, llena: salida.cuposDisponibles < busqueda.personas }"
+        >
+          <input
+            v-model="salidaId"
+            type="radio"
+            name="salida"
+            :value="salida.id"
+            :disabled="salida.cuposDisponibles < busqueda.personas"
+          />
+          <span class="salida-texto">
+            <span>{{ formatearFechaHora(salida.inicio) }} – {{ formatearHora(salida.fin) }}</span>
+            <span class="texto-gris salida-cupos">
+              {{ salida.cuposDisponibles === 1 ? '1 cupo libre' : salida.cuposDisponibles + ' cupos libres' }}
+            </span>
+          </span>
+        </label>
+        <p v-if="intentoEnviar && !salidaValida" class="texto-error error">Elige una salida con cupos para {{ textoPersonas(busqueda.personas) }}.</p>
       </div>
 
       <div class="tarjeta tarjeta-amplia">
@@ -132,11 +196,17 @@ function continuar() {
         <p v-if="intentoEnviar && !aceptaReglas" class="texto-error error">Debes aceptar las reglas para continuar.</p>
       </div>
 
-      <p class="texto-gris aviso">Al continuar, tus fechas quedan apartadas por 15 minutos mientras pagas.</p>
+      <p class="texto-gris aviso">
+        Al continuar, {{ esActividad ? 'tus cupos quedan apartados' : 'tus fechas quedan apartadas' }} por 15 minutos mientras pagas.
+      </p>
+
+      <p v-if="error" class="texto-error aviso" role="alert">{{ error }}</p>
     </div>
 
     <div class="pie">
-      <button type="button" class="boton boton-primario continuar" @click="continuar">Continuar al pago</button>
+      <button type="button" class="boton boton-primario continuar" :disabled="enviando" @click="continuar">
+        {{ enviando ? 'Procesando…' : 'Continuar al pago' }}
+      </button>
     </div>
   </section>
 </template>
@@ -207,9 +277,7 @@ function continuar() {
   width: 88px;
   height: 88px;
   flex-shrink: 0;
-  object-fit: cover;
   border-radius: var(--radio-sm);
-  background: var(--color-mapa);
 }
 
 .resumen-nombre {
@@ -240,6 +308,40 @@ function continuar() {
   margin: 0;
   text-align: right;
   font-weight: var(--peso-medio);
+}
+
+.salida {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-3);
+  margin-top: var(--espacio-2);
+  padding: var(--espacio-3);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-sm);
+  cursor: pointer;
+}
+
+.salida.elegida {
+  border-color: var(--color-primario);
+  background: var(--color-primario-fondo);
+}
+
+.salida.llena {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.salida input {
+  accent-color: var(--color-primario);
+}
+
+.salida-texto {
+  display: flex;
+  flex-direction: column;
+}
+
+.salida-cupos {
+  font-size: var(--texto-sm);
 }
 
 .titulo-tarjeta {

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import IconoBase from '../components/IconoBase.vue'
-import { obtenerPerfil } from '../datos/cuentaPrueba.js'
+import { obtenerPerfil } from '../datos/servicios.js'
 import { sesion, cerrarSesion } from '../estado/sesion.js'
 
 const router = useRouter()

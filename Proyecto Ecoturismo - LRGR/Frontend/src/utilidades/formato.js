@@ -26,7 +26,10 @@ export function textoPersonas(personas) {
 }
 
 export function formatearCalificacion(valor) {
-  return valor.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  if (valor === null || valor === undefined) {
+    return 'Nuevo'
+  }
+  return Number(valor).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 
 export function textoSubtitulo(publicacion) {
@@ -54,4 +57,20 @@ export function formatearFechaHora(valor) {
 
 export function formatearHora(valor) {
   return new Date(valor).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' })
+}
+
+export function normalizarTexto(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+}
+
+export function sumarDias(fecha, dias) {
+  const resultado = fecha ? new Date(fecha + 'T00:00:00') : new Date()
+  resultado.setDate(resultado.getDate() + dias)
+  const mes = String(resultado.getMonth() + 1).padStart(2, '0')
+  const dia = String(resultado.getDate()).padStart(2, '0')
+  return resultado.getFullYear() + '-' + mes + '-' + dia
 }

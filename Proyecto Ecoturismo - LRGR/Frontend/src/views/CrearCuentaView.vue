@@ -5,7 +5,7 @@ import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import BarraInferiorTurista from '../components/BarraInferiorTurista.vue'
 import FiltrosRapidos from '../components/FiltrosRapidos.vue'
 import IconoBase from '../components/IconoBase.vue'
-import { registrarCuenta, iniciarSesion } from '../datos/cuentaPrueba.js'
+import { registrarCuenta, iniciarSesion } from '../datos/servicios.js'
 import { guardarSesion } from '../estado/sesion.js'
 
 const route = useRoute()

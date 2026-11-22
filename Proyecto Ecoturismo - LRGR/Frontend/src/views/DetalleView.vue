@@ -1,9 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import EncabezadoPrincipal from '../components/EncabezadoPrincipal.vue'
 import DetallePublicacion from '../components/DetallePublicacion.vue'
-import { buscarPublicacion } from '../datos/publicaciones.js'
+import { obtenerPublicacion } from '../datos/servicios.js'
 import { busqueda, actualizarBusqueda } from '../estado/busqueda.js'
 
 const props = defineProps({
@@ -12,7 +12,24 @@ const props = defineProps({
 
 const router = useRouter()
 
-const publicacion = computed(() => buscarPublicacion(props.id))
+const publicacion = ref(null)
+const cargando = ref(true)
+const error = ref('')
+
+async function cargar() {
+  cargando.value = true
+  error.value = ''
+  publicacion.value = null
+  try {
+    publicacion.value = await obtenerPublicacion(props.id)
+  } catch (problema) {
+    error.value = problema.estado === 404 || problema.estado === 400 ? '' : problema.error || 'No pudimos cargar esta publicación.'
+  } finally {
+    cargando.value = false
+  }
+}
+
+watch(() => props.id, cargar, { immediate: true })
 
 function volver() {
   router.push({ name: 'resultados' })
@@ -34,14 +51,21 @@ function reservar() {
       <EncabezadoPrincipal :busqueda="busqueda" @buscar="buscar" />
     </div>
 
+    <p v-if="cargando" class="no-encontrado texto-secundario">Cargando…</p>
+
     <DetallePublicacion
-      v-if="publicacion"
+      v-else-if="publicacion"
       :publicacion="publicacion"
       :busqueda="busqueda"
       @volver="volver"
       @reservar="reservar"
       @editar-fechas="volver"
     />
+
+    <div v-else-if="error" class="no-encontrado">
+      <p class="texto-error">{{ error }}</p>
+      <button type="button" class="boton boton-contorno" @click="cargar">Reintentar</button>
+    </div>
 
     <div v-else class="no-encontrado">
       <p>No encontramos esta publicación.</p>

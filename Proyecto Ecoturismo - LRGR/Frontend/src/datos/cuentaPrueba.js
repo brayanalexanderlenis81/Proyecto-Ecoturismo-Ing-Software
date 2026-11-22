@@ -1,3 +1,6 @@
+import { publicaciones } from './publicaciones.js'
+import { obtenerSalidas } from './catalogoPrueba.js'
+
 const contrasenaPrueba = 'Prueba123*'
 
 const usuarios = [
@@ -173,6 +176,8 @@ const reservas = [
 
 const resenas = []
 
+const pagos = []
+
 function esperar() {
   return new Promise((resolver) => setTimeout(resolver, 300))
 }
@@ -327,5 +332,110 @@ export async function crearResena(token, idReserva, { calificacion, comentario }
   }
   resenas.push(resena)
   const { id_reserva, ...respuesta } = resena
+  return respuesta
+}
+
+function noches(entrada, salida) {
+  return Math.round((new Date(salida + 'T00:00:00') - new Date(entrada + 'T00:00:00')) / 86400000)
+}
+
+function seCruzan(reserva, entrada, salida) {
+  const vigente =
+    reserva.estado_reserva === 'confirmada' ||
+    (reserva.estado_reserva === 'pendiente' && new Date(reserva.expira_en) > new Date())
+  return vigente && reserva.fecha_entrada < salida && entrada < reserva.fecha_salida
+}
+
+export async function crearReserva(token, datos) {
+  await esperar()
+  const usuario = usuarioDelToken(token)
+  const publicacion = publicaciones.find((item) => item.id === Number(datos.id_publicacion))
+  if (!publicacion) {
+    throw errorApi(404, 'La publicación no existe')
+  }
+  const personas = Number(datos.personas)
+  let cantidad = personas
+  let salida = null
+  if (publicacion.tipo === 'Actividad') {
+    const lista = await obtenerSalidas(publicacion.id)
+    salida = lista.find((item) => item.id === Number(datos.id_salida))
+    if (!salida) {
+      throw errorApi(400, 'Esa salida no existe o ya pasó.')
+    }
+    if (salida.cuposDisponibles < personas) {
+      throw errorApi(400, 'No hay cupos suficientes para esa salida.')
+    }
+  } else {
+    cantidad = noches(datos.fecha_entrada, datos.fecha_salida)
+    if (!(cantidad > 0)) {
+      throw errorApi(400, 'La fecha de salida debe ser después de la de entrada.')
+    }
+    const ocupada = reservas.some(
+      (item) => item.id_publicacion === String(publicacion.id) && seCruzan(item, datos.fecha_entrada, datos.fecha_salida)
+    )
+    if (ocupada) {
+      throw errorApi(409, 'Esas fechas ya están reservadas.')
+    }
+  }
+  const subtotal = publicacion.precio * cantidad
+  const comision = Math.round(subtotal * 0.1)
+  const nueva = {
+    id_usuario: usuario.id_usuario,
+    id_reserva: String(Math.max(...reservas.map((item) => Number(item.id_reserva))) + 1),
+    estado_reserva: 'pendiente',
+    id_publicacion: String(publicacion.id),
+    titulo: publicacion.nombre,
+    tipo: publicacion.tipo === 'Actividad' ? 'actividad' : 'alojamiento',
+    municipio: publicacion.ciudad,
+    fecha_entrada: salida ? null : datos.fecha_entrada,
+    fecha_salida: salida ? null : datos.fecha_salida,
+    inicio: salida ? salida.inicio : null,
+    fin: salida ? salida.fin : null,
+    personas,
+    subtotal: subtotal.toFixed(2),
+    comision: comision.toFixed(2),
+    total: (subtotal + comision).toFixed(2),
+    expira_en: horaDesdeAhora(15),
+    direccion_exacta: 'Dirección de prueba en ' + publicacion.ciudad + ', ' + publicacion.departamento
+  }
+  reservas.push(nueva)
+  return {
+    id_reserva: nueva.id_reserva,
+    estado_reserva: nueva.estado_reserva,
+    subtotal: nueva.subtotal,
+    comision: nueva.comision,
+    total: nueva.total,
+    expira_en: nueva.expira_en
+  }
+}
+
+export async function pagarReserva(token, datos) {
+  await esperar()
+  const reserva = reservaDelUsuario(token, datos.id_reserva)
+  if (!reserva) {
+    throw errorApi(404, 'No encontramos esa reserva entre las tuyas.')
+  }
+  const repetido = pagos.find((item) => item.clave_idempotencia === datos.clave_idempotencia)
+  if (repetido) {
+    return { ...repetido.respuesta, estado_reserva: reserva.estado_reserva }
+  }
+  if (reserva.estado_reserva !== 'pendiente' || new Date(reserva.expira_en) <= new Date()) {
+    throw errorApi(400, 'Solo se paga una reserva pendiente y vigente.')
+  }
+  const aprobado = datos.resultado === 'aprobado'
+  if (aprobado) {
+    reserva.estado_reserva = 'confirmada'
+    reserva.expira_en = null
+  }
+  const respuesta = {
+    id_pago: String(pagos.length + 1),
+    estado_pago: aprobado ? 'aprobado' : 'rechazado',
+    medio: datos.medio,
+    valor: reserva.total,
+    referencia_pasarela: 'PRUEBA-' + Date.now(),
+    id_reserva: reserva.id_reserva,
+    estado_reserva: reserva.estado_reserva
+  }
+  pagos.push({ clave_idempotencia: datos.clave_idempotencia, respuesta })
   return respuesta
 }

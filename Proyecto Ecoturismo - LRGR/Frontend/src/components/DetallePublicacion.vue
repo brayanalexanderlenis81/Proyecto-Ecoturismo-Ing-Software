@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import IconoBase from './IconoBase.vue'
+import ImagenPublicacion from './ImagenPublicacion.vue'
 import {
   formatearPrecio,
   formatearCalificacion,
@@ -16,6 +17,8 @@ const props = defineProps({
 const emit = defineEmits(['volver', 'reservar', 'editar-fechas'])
 
 const fotoActual = ref(0)
+
+const fotos = computed(() => (props.publicacion.imagenes.length ? props.publicacion.imagenes : ['']))
 const verTodasResenas = ref(false)
 
 const resenasVisibles = computed(() =>
@@ -33,15 +36,17 @@ function cambiarFoto(evento) {
 <template>
   <article class="detalle">
     <div class="galeria-contenedor">
-      <div v-if="publicacion.imagenes.length" class="galeria" @scroll="cambiarFoto">
-        <img
-          v-for="(imagen, indice) in publicacion.imagenes"
-          :key="imagen"
+      <div class="galeria" @scroll="cambiarFoto">
+        <ImagenPublicacion
+          v-for="(imagen, indice) in fotos"
+          :key="indice"
+          class="foto-galeria"
           :src="imagen"
           :alt="publicacion.nombre + ' foto ' + (indice + 1)"
+          :tipo="publicacion.tipo"
+          :tamano-icono="72"
         />
       </div>
-      <div v-else class="galeria galeria-vacia">Sin fotos por ahora</div>
 
       <button type="button" class="boton-volver" aria-label="Volver" @click="emit('volver')">
         <IconoBase nombre="atras" />
@@ -161,18 +166,9 @@ function cambiarFoto(evento) {
   display: none;
 }
 
-.galeria img {
+.foto-galeria {
   flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
   scroll-snap-align: start;
-}
-
-.galeria-vacia {
-  align-items: center;
-  justify-content: center;
-  color: var(--color-texto-secundario);
 }
 
 .boton-volver {
@@ -398,11 +394,11 @@ function cambiarFoto(evento) {
     border-radius: var(--radio-lg);
   }
 
-  .galeria img:first-child {
+  .foto-galeria:first-child {
     grid-row: span 2;
   }
 
-  .galeria img:only-child {
+  .foto-galeria:only-child {
     grid-column: span 2;
   }
 
