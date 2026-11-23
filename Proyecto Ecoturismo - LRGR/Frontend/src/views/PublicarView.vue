@@ -488,9 +488,10 @@ onBeforeUnmount(() => fotos.value.forEach(liberarVista))
             <textarea
               v-model="formulario.normas"
               maxlength="2000"
-              placeholder="Ej.: No se permiten mascotas. Silencio después de las 10 p. m."
+              placeholder="Ej.: No se permiten mascotas.&#10;Silencio después de las 10 p. m."
             ></textarea>
           </label>
+          <p class="texto-secundario ayuda">Escribe una norma por línea.</p>
         </section>
 
         <p v-if="error" class="texto-error error-envio" role="alert">{{ error }}</p>

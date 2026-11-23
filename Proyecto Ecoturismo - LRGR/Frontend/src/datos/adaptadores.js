@@ -47,9 +47,9 @@ function textoCapacidad(datos) {
 
 function separarNormas(normas) {
   return String(normas || '')
-    .split(/\n|(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/)
-    .map((norma) => norma.trim())
-    .filter((norma) => norma !== '')
+    .split(/\n|(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡])|(?<=[.!?])\s+(?=\d+[.)]\s)/)
+    .map((norma) => norma.trim().replace(/^(?:\d+[.)]|[-*•])(?=\s|$)\s*/, ''))
+    .filter((norma) => !/^[\d\s.)]*$/.test(norma))
 }
 
 function serviciosDeActividad(datos) {
